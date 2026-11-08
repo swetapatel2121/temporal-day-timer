@@ -42,7 +42,7 @@ Day = {
 
 Each step is its own PR. Backend steps are written by hand, and frontend steps are written with Claude.
 
-- [ ] 1. Project setup (backend): folders for the worker, the HTTP server, and `web/`, with the Temporal SDK installed. The README explains how to run the dev server and the worker. An empty `projectTimer` workflow can be started from the Temporal CLI, and the test runner uses the time-skipping test environment, with one passing test.
+- [x] 1. Project setup (backend): folders for the worker, the HTTP server, and `web/`, with the Temporal SDK installed. The README explains how to run the dev server and the worker. An empty `projectTimer` workflow can be started from the Temporal CLI, and the test runner uses the time-skipping test environment, with one passing test.
 - [ ] 2. The `projectTimer` workflow (backend): start and pause, a query that returns the project's state, and sleeping until `endsAt`, then closing any running stretch and completing. It can be driven from the Temporal CLI, and tests cover the totals and midnight with skipped time.
 - [ ] 3. HTTP API (backend): the four routes above. It lists today's workflows and queries each one to build the day. Starting a project pauses the running one, then uses signal-with-start. It also serves the `web/` folder. A whole day can be run with `curl`.
 - [ ] 4. Web page (frontend): today's projects with their times ticking, an "Add project" field, a Start/Pause button for each project, and errors from the API. It's built against a fake API while steps 2 and 3 are in progress.
