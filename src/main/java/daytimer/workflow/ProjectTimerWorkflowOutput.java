@@ -1,4 +1,7 @@
 package daytimer.workflow;
 
-public class ProjectTimerWorkflowOutput {
-}
+import daytimer.model.Project;
+
+public record ProjectTimerWorkflowOutput (
+    Project project
+) {}

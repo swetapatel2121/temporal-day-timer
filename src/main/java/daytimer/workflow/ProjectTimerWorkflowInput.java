@@ -1,4 +1,7 @@
 package daytimer.workflow;
 
-public class ProjectTimerWorkflowInput {
-}
+public record ProjectTimerWorkflowInput (
+    String name,
+    String date,
+    long endsAt
+) {}
