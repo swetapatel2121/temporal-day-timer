@@ -24,27 +24,34 @@ Temporal Day Timer is a small web app for tracking time spent on projects during
 ## API
 
 ```
-GET  /api/today                  → Day
-POST /api/projects  { name }     → Day   add a project (starts its workflow, paused)
-POST /api/start     { project }  → Day   start or resume; pauses any other
-POST /api/pause     { project }  → Day
+GET  /api/projects                 → 200 [Project]   today's projects
+POST /api/projects       { name }  → 201 Project     add a project (starts its workflow, paused)
+POST /api/projects/{name}/start    → 200 Project     start or resume; pauses any other
+POST /api/projects/{name}/pause    → 200 Project
 
-Day = {
+Project = {
+  name: "edit readme",
   date: "2026-11-06",
   endsAt: 1762502400000,
-  projects: [{ name, totalMs, runningSince, nudgedAt }]
+  totalMs: 1800000,
+  runningSince: 1762450000000,
+  nudgedAt: null
 }
 ```
 
-`runningSince` and `nudgedAt` are `null` when not set. Every route returns the whole day, so the page redraws from the response. Errors, like a duplicate project name, come back as `{ error }` with a 4xx status.
+- `{name}` is the project's name, URL-encoded: `/api/projects/edit%20readme/start`. Names are unique for the day, like the workflow IDs.
+- `runningSince` and `nudgedAt` are `null` when not set. Every project has the same `date` and `endsAt`, since they all end at midnight.
+- Starting a project also pauses the running one, so after a start the page fetches `GET /api/projects` again.
+- After adding a project, the page uses the project it gets back instead of fetching the list. A workflow that has just started can take a moment to show up in the list.
+- Errors come back as `{ error }`: `404` for a project that doesn't exist today, `409` for a name that's already taken today, and `400` for a bad request.
 
 ## Build plan
 
 Each step is its own PR. Backend steps are written by hand, and frontend steps are written with Claude.
 
 - [x] 1. Project setup (backend): folders for the worker, the HTTP server, and `web/`, with the Temporal SDK installed. The README explains how to run the dev server and the worker. An empty `projectTimer` workflow can be started from the Temporal CLI, and the test runner uses the time-skipping test environment, with one passing test.
-- [ ] 2. The `projectTimer` workflow (backend): start and pause, a query that returns the project's state, and sleeping until `endsAt`, then closing any running stretch and completing. It can be driven from the Temporal CLI, and tests cover the totals and midnight with skipped time.
-- [ ] 3. HTTP API (backend): the four routes above. It lists today's workflows and queries each one to build the day. Starting a project pauses the running one, then uses signal-with-start. It also serves the `web/` folder. A whole day can be run with `curl`.
+- [x] 2. The `projectTimer` workflow (backend): start and pause, a query that returns the project's state, and sleeping until `endsAt`, then closing any running stretch and completing. It can be driven from the Temporal CLI, and tests cover the totals and midnight with skipped time.
+- [ ] 3. HTTP API (backend): the four routes above. It lists today's workflows and queries each one to build the list of projects. Starting a project pauses the running one, then signals the project to start. It also serves the `web/` folder. A whole day can be run with `curl`.
 - [ ] 4. Web page (frontend): today's projects with their times ticking, an "Add project" field, a Start/Pause button for each project, and errors from the API. It's built against a fake API while steps 2 and 3 are in progress.
 - [ ] 5. "Still running?" nudge (backend): while a project runs, its workflow sets a 2-hour timer (configurable, and 1 minute while testing). Pausing cancels it. When it fires, a `notify` activity shows a Mac notification and the workflow sets `nudgedAt`.
 - [ ] 6. Nudge and midnight on the page (frontend): show when the day ends, move to the new day without a reload, and mark projects that have been nudged.
