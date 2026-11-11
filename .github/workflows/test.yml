@@ -1,5 +1,6 @@
 # Runs the tests on every pull request and on every push to main.
-# The tests use Temporal's in-memory test server, so no dev server is needed here.
+# The workflow tests use Temporal's in-memory test server. The HTTP server tests start their own
+# throwaway dev server with the Temporal CLI, so the CLI is installed first.
 name: Tests
 
 on:
@@ -20,4 +21,8 @@ jobs:
           distribution: temurin
           java-version: '25'
           cache: maven
+      - name: Install the Temporal CLI
+        run: |
+          curl -sSf https://temporal.download/cli.sh | sh
+          echo "$HOME/.temporalio/bin" >> "$GITHUB_PATH"
       - run: mvn -B test
