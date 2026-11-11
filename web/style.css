@@ -218,6 +218,28 @@ svg {
     fill: currentColor;
 }
 
+/* "Still working on this?" once the running project has been nudged. */
+.now-nudge {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: 0.3rem;
+    color: color-mix(in srgb, var(--c) 60%, var(--text));
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.now-nudge svg,
+.nudged svg {
+    width: 0.9rem;
+    height: 0.9rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
 .idle-title {
     color: var(--heading);
     font-size: 1.25rem;
@@ -247,6 +269,11 @@ svg {
     font-size: 1.05rem;
     font-weight: 600;
     font-variant-numeric: tabular-nums;
+}
+
+.day-ends {
+    color: var(--muted);
+    font-size: 0.85rem;
 }
 
 .breakdown {
@@ -362,8 +389,31 @@ input:focus {
 }
 
 .name {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem 0.5rem;
+    min-width: 0;
+}
+
+.name-text {
     font-weight: 500;
     overflow-wrap: anywhere;
+}
+
+/* A bell and the time of the project's last nudge. */
+.nudged {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.1rem 0.5rem 0.1rem 0.4rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--c) 16%, var(--surface));
+    color: color-mix(in srgb, var(--c) 60%, var(--text));
+    font-size: 0.75rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
 }
 
 .time {

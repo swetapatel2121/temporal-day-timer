@@ -8,7 +8,7 @@ Temporal Day Timer is a small web app for tracking time spent on projects during
 - [x] Users can pause and resume a timer at any time.
 - [x] Only one timer runs at a time. Starting a timer pauses the one that's running.
 - [x] Users can add new projects during the day and work on them.
-- [ ] Timers only last for the day. At local midnight they end, and the next day starts empty.
+- [x] Timers only last for the day. At local midnight they end, and the next day starts empty.
 - [x] When a timer has been running for a long time, the user gets a "Still running?" nudge.
 
 ## Design
@@ -42,7 +42,9 @@ Project = {
 - `{name}` is the project's name, URL-encoded: `/api/projects/edit%20readme/start`. Names are unique for the day, like the workflow IDs.
 - `runningSince` and `nudgedAt` are `null` when not set. Every project has the same `date` and `endsAt`, since they all end at midnight.
 - Starting a project also pauses the running one. The server does that with a signal, which that project's workflow handles a moment after the start request returns, so fetching the list right away could still show it running. Instead, the page pauses it itself, using the started project's `runningSince` as the time, the same time the server uses.
-- After adding a project, the page uses the project it gets back instead of fetching the list. A workflow that has just started can take a moment to show up in the list.
+- After adding a project, the page uses the project it gets back instead of fetching the list. A workflow that has just started can take a moment to show up in the list, so the page keeps a project it just added for 30 seconds even if the list doesn't show it yet.
+- The page fetches the list again every 30 seconds while it's in view, and whenever it comes back into view, so a nudge shows up. If the list briefly shows two projects running, the one started last wins, as it does on the server.
+- At the end of the day, the page moves to the new day by itself. It checks every second rather than setting a timer for midnight, so it also catches up after the computer wakes from sleep.
 - Errors come back as `{ error }`: `404` for a project that doesn't exist today, `409` for a name that's already taken today, and `400` for a bad request.
 
 ## Build plan
@@ -54,7 +56,7 @@ Each step is its own PR. Backend steps are written by hand, and frontend steps a
 - [x] 3. HTTP API (backend): the four routes above. It lists today's workflows and queries each one to build the list of projects. Starting a project sends it a `start` update, then signals the other running projects so the running one pauses. It also serves the `web/` folder. A whole day can be run with `curl`.
 - [x] 4. Web page (frontend): today's projects with their times ticking, an "Add project" field, a Start/Pause button for each project, and errors from the API.
 - [x] 5. "Still running?" nudge (backend): while a project runs, its workflow sets a 2-hour timer (configurable with `NUDGE_AFTER_MS`, passed to each workflow as `nudgeAfterMs`). Pausing cancels it. When it fires, the workflow sets `nudgedAt` and a `notifyUser` activity shows a Mac notification.
-- [ ] 6. Nudge and midnight on the page (frontend): show when the day ends, move to the new day without a reload, and mark projects that have been nudged.
+- [x] 6. Nudge and midnight on the page (frontend): show when the day ends, move to the new day without a reload, and mark projects that have been nudged.
 
 ## Things to try
 
