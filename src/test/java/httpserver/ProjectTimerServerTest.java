@@ -177,6 +177,14 @@ class ProjectTimerServerTest {
         assertEquals(List.of("list today"), listed.stream().map(Project::name).toList());
     }
 
+    @Test
+    void servesTheWebPage() throws Exception {
+        HttpResponse<String> response = get("/");
+
+        assertEquals(200, response.statusCode(), response.body());
+        assertTrue(response.body().contains("<title>Day Timer</title>"), response.body());
+    }
+
     // ---- helpers ----
 
     private static HttpResponse<String> post(String path, String body) throws Exception {

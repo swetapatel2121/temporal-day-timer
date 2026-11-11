@@ -1,0 +1,496 @@
+/* Colors come from the ProjectTimer iOS app: a sage accent, and eight soft colors that projects
+   get in the order they were added (--project-0 … --project-7). */
+:root {
+    color-scheme: light dark;
+    --bg: #f6f7f3;
+    --surface: #ffffff;
+    --text: #1f2a22;
+    --heading: #2f4a34;
+    --muted: #6b776d;
+    --border: #e3e8df;
+    --track: #e9ede6;
+    --accent: #5e7f63;
+    --button: #4d6e53;
+    --button-text: #ffffff;
+    --on-color: #ffffff;
+    --shadow: 0 1px 2px rgb(31 42 34 / 0.05), 0 8px 24px rgb(31 42 34 / 0.05);
+    --error-bg: #f8e9e7;
+    --error-text: #9a3b31;
+
+    --project-0: #7c9a72; /* sage */
+    --project-1: #6b8fb0; /* dusty blue */
+    --project-2: #c98b6b; /* terracotta */
+    --project-3: #8e86b5; /* lavender */
+    --project-4: #c4a15a; /* ochre */
+    --project-5: #5f9a94; /* teal */
+    --project-6: #c9848f; /* rose */
+    --project-7: #a784a0; /* mauve */
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --bg: #111512;
+        --surface: #1a201b;
+        --text: #e3ebe4;
+        --heading: #cfe0d1;
+        --muted: #94a196;
+        --border: #273029;
+        --track: #222a24;
+        --accent: #9dbda1;
+        --button: #9dbda1;
+        --button-text: #111512;
+        --on-color: #111512;
+        --shadow: none;
+        --error-bg: #3b2220;
+        --error-text: #f0b9b0;
+
+        --project-0: #95b28b;
+        --project-1: #8fafd0;
+        --project-2: #d99c7e;
+        --project-3: #a59ecb;
+        --project-4: #d4b26e;
+        --project-5: #78b2ac;
+        --project-6: #d998a2;
+        --project-7: #be9db8;
+    }
+}
+
+* {
+    box-sizing: border-box;
+}
+
+/* Elements hidden from app.js stay hidden, even ones whose styles set a display. */
+[hidden] {
+    display: none !important;
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    /* A soft glow at the top in the running project's color (set from app.js), or the accent. */
+    background:
+        radial-gradient(52rem 30rem at 50% -14rem, color-mix(in srgb, var(--glow, var(--accent)) 18%, transparent), transparent 70%)
+        no-repeat,
+        var(--bg);
+    color: var(--text);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+}
+
+main {
+    display: grid;
+    gap: 1.25rem;
+    max-width: 36rem;
+    margin: 0 auto;
+    padding: 3rem 1rem 4rem;
+}
+
+/* Everything under the header stays hidden until the first load is done, then fades in. Otherwise
+   the add field shows first and jumps down when the cards above it appear. */
+main > :not(header) {
+    transition: opacity 0.25s ease;
+}
+
+body:not(.ready) main > :not(header) {
+    visibility: hidden;
+    opacity: 0;
+}
+
+p {
+    margin: 0;
+}
+
+.eyebrow {
+    color: var(--muted);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+h1 {
+    margin: 0.15rem 0 0;
+    color: var(--heading);
+    font-size: 1.75rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+}
+
+.intro {
+    margin-top: 0.5rem;
+    color: var(--muted);
+}
+
+.card {
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    background: var(--surface);
+    box-shadow: var(--shadow);
+}
+
+svg {
+    flex: none;
+}
+
+/* ---- the "Working on" card ---- */
+
+.now {
+    padding: 1.5rem;
+    transition: background-color 0.3s, border-color 0.3s;
+}
+
+.now.running {
+    border-color: color-mix(in srgb, var(--c) 40%, var(--border));
+    background: linear-gradient(140deg,
+        color-mix(in srgb, var(--c) 26%, var(--surface)),
+        color-mix(in srgb, var(--c) 8%, var(--surface)) 75%);
+}
+
+.now:not(.running) .running-view,
+.now.running .idle-view {
+    display: none;
+}
+
+.now-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: color-mix(in srgb, var(--c) 55%, var(--text));
+}
+
+.pulse-dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    background: var(--c);
+    animation: pulse 2s ease-out infinite;
+}
+
+.now-name {
+    margin-top: 0.35rem;
+    font-size: 1.25rem;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.now-bottom {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 0.75rem 1rem;
+    margin-top: 0.25rem;
+}
+
+.now-time {
+    color: color-mix(in srgb, var(--c) 45%, var(--text));
+    font-size: clamp(2.75rem, 13vw, 4.25rem);
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.03em;
+    line-height: 1.05;
+}
+
+.now-pause {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: 0.35rem;
+    padding: 0.6rem 1.15rem 0.6rem 0.9rem;
+    border: 1px solid color-mix(in srgb, var(--c) 45%, transparent);
+    border-radius: 999px;
+    background: var(--surface);
+    color: color-mix(in srgb, var(--c) 50%, var(--text));
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.12s, background-color 0.2s;
+}
+
+.now-pause:hover {
+    background: color-mix(in srgb, var(--c) 10%, var(--surface));
+}
+
+.now-pause svg {
+    width: 1rem;
+    height: 1rem;
+    fill: currentColor;
+}
+
+.idle-title {
+    color: var(--heading);
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.idle-hint {
+    color: var(--muted);
+}
+
+/* ---- the day's total and breakdown bar ---- */
+
+.summary {
+    display: grid;
+    gap: 0.7rem;
+    padding: 1rem 1.25rem 1.15rem;
+}
+
+.summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+}
+
+.total {
+    color: var(--heading);
+    font-size: 1.05rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.breakdown {
+    display: flex;
+    gap: 3px;
+    height: 0.6rem;
+    overflow: hidden;
+    border-radius: 999px;
+    background: var(--track);
+}
+
+.breakdown span {
+    flex: 0 1 0;
+    background: var(--c);
+    transition: flex-grow 0.6s ease;
+}
+
+/* ---- adding a project ---- */
+
+form {
+    display: flex;
+    gap: 0.5rem;
+}
+
+input {
+    flex: 1;
+    min-width: 0;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: var(--surface);
+    box-shadow: var(--shadow);
+    color: var(--text);
+    font: inherit;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+input::placeholder {
+    color: var(--muted);
+}
+
+input:focus {
+    border-color: var(--accent);
+    outline: none;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+.add {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.75rem 1.15rem 0.75rem 0.95rem;
+    border: none;
+    border-radius: 14px;
+    background: var(--button);
+    color: var(--button-text);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.12s, filter 0.2s;
+}
+
+.add:hover {
+    filter: brightness(1.08);
+}
+
+.add svg {
+    width: 1.1rem;
+    height: 1.1rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.4;
+    stroke-linecap: round;
+}
+
+/* ---- the list of projects ---- */
+
+#projects {
+    display: grid;
+    gap: 0.5rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.project {
+    display: grid;
+    grid-template-columns: auto 1fr auto auto;
+    align-items: center;
+    gap: 0.85rem;
+    padding: 0.65rem 0.65rem 0.65rem 1.1rem;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: var(--surface);
+    box-shadow: var(--shadow);
+    transition: background-color 0.3s, border-color 0.3s;
+}
+
+.project.running {
+    border-color: color-mix(in srgb, var(--c) 45%, var(--border));
+    background: color-mix(in srgb, var(--c) 13%, var(--surface));
+}
+
+.dot {
+    width: 0.65rem;
+    height: 0.65rem;
+    border-radius: 50%;
+    background: var(--c);
+}
+
+.running .dot {
+    animation: pulse 2s ease-out infinite;
+}
+
+.name {
+    font-weight: 500;
+    overflow-wrap: anywhere;
+}
+
+.time {
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.running .time {
+    color: color-mix(in srgb, var(--c) 50%, var(--text));
+    font-weight: 600;
+}
+
+.toggle {
+    display: grid;
+    place-items: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--c) 18%, var(--surface));
+    color: color-mix(in srgb, var(--c) 60%, var(--text));
+    cursor: pointer;
+    transition: transform 0.12s, background-color 0.2s;
+}
+
+.toggle:hover {
+    background: color-mix(in srgb, var(--c) 30%, var(--surface));
+}
+
+.toggle.pause {
+    background: var(--c);
+    color: var(--on-color);
+}
+
+.toggle svg {
+    width: 1.1rem;
+    height: 1.1rem;
+    fill: currentColor;
+}
+
+.toggle .icon-play {
+    margin-left: 2px; /* the triangle looks centered when nudged right a little */
+}
+
+.toggle .icon-pause,
+.toggle.pause .icon-play {
+    display: none;
+}
+
+.toggle.pause .icon-pause {
+    display: block;
+}
+
+/* ---- buttons in general ---- */
+
+button:active:not(:disabled) {
+    transform: scale(0.95);
+}
+
+button:disabled {
+    opacity: 0.5;
+    cursor: progress;
+}
+
+:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+input:focus-visible {
+    outline: none;
+}
+
+/* ---- errors and the empty state ---- */
+
+#error {
+    padding: 0.7rem 1rem;
+    border-radius: 14px;
+    background: var(--error-bg);
+    color: var(--error-text);
+    font-weight: 500;
+}
+
+.empty {
+    padding: 2.5rem 1rem 1rem;
+    color: var(--muted);
+    text-align: center;
+}
+
+.empty svg {
+    width: 3.5rem;
+    height: 3.5rem;
+    margin-bottom: 0.75rem;
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.empty-title {
+    color: var(--heading);
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 color-mix(in srgb, var(--c) 60%, transparent);
+    }
+    70%, 100% {
+        box-shadow: 0 0 0 0.5rem transparent;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation: none !important;
+        transition: none !important;
+    }
+}

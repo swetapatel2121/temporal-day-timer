@@ -1,6 +1,6 @@
 # Shortcuts for common tasks. Run `make` or `make help` to list them.
 .DEFAULT_GOAL := help
-.PHONY: help build test clean temporal project-timer-worker start-project-timer-workflow describe
+.PHONY: help build test clean temporal project-timer-worker server start-project-timer-workflow describe
 
 PROJECT_TIMER_TASK_QUEUE := project-timers
 
@@ -21,6 +21,9 @@ temporal: ## Start the Temporal dev server, saved to temporal.db (Web UI at http
 
 project-timer-worker: ## Start the worker (needs the dev server running)
 	mvn -q compile exec:java@worker
+
+server: ## Start the HTTP server and the web page at http://localhost:7070 (needs the dev server and the worker)
+	mvn -q compile exec:java@server
 
 start-project-timer-workflow: ## Start a workflow: make start-project-timer-workflow NAME=myproject [INPUT='{...}']
 	@test -n "$(NAME)" || (echo "usage: make start-project-timer-workflow NAME=<project> [INPUT='<json>']" && exit 1)

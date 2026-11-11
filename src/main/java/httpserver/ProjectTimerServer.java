@@ -5,6 +5,7 @@ import daytimer.model.Project;
 import daytimer.workflow.ProjectTimerWorkflow;
 import daytimer.workflow.ProjectTimerWorkflowInput;
 import io.javalin.Javalin;
+import io.javalin.http.staticfiles.Location;
 import io.temporal.client.*;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 
@@ -26,7 +27,8 @@ public class ProjectTimerServer {
 
     // Sets up the routes without starting the server, so tests can run it against their own Temporal server.
     public static Javalin createApp(WorkflowClient client) {
-        Javalin app = Javalin.create();
+        // Also serves the web page from the web/ folder. It's read from disk, so changes show up on reload.
+        Javalin app = Javalin.create(config -> config.staticFiles.add("web", Location.EXTERNAL));
 
         app.get("/api/projects", ctx -> {
             List<Project> projects = client
