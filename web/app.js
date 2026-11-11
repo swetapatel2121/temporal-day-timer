@@ -21,7 +21,6 @@ const page = {
     now: document.getElementById("now"),
     nowName: document.getElementById("now-name"),
     nowNudge: document.getElementById("now-nudge"),
-    nowNudgeText: document.getElementById("now-nudge-text"),
     nowTime: document.getElementById("now-time"),
     nowPause: document.getElementById("now-pause"),
     summary: document.getElementById("summary"),
@@ -200,11 +199,6 @@ function formatDuration(ms) {
     return `${Math.floor(seconds / 3600)}:${pad(Math.floor(seconds / 60) % 60)}:${pad(seconds % 60)}`;
 }
 
-// A moment as a time of day: "3:12 PM", or "15:12", depending on the browser's settings.
-function formatClockTime(ms) {
-    return new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(ms);
-}
-
 // 18720000 → "5 h 12 m"
 function formatTimeLeft(ms) {
     const minutes = Math.floor(ms / 60_000);
@@ -258,13 +252,8 @@ function render() {
         button.title = label;
         button.disabled = state.busy.has(project.name);
 
-        const nudged = row.querySelector(".nudged");
-        nudged.hidden = project.nudgedAt == null;
-        if (project.nudgedAt != null) {
-            const at = formatClockTime(project.nudgedAt);
-            nudged.querySelector(".nudged-time").textContent = at;
-            nudged.title = `"Still running?" nudge at ${at}`;
-        }
+        // A bell only while the nudge is current: the project is running and was nudged during this stretch.
+        row.querySelector(".nudged").hidden = !nudgedWhileRunning(project);
 
         if (page.list.children[index] !== row) {
             page.list.insertBefore(row, page.list.children[index] ?? null);
@@ -285,10 +274,6 @@ function render() {
         page.now.style.setProperty("--c", colorAt(runningIndex));
         page.nowName.textContent = running.name;
         page.nowPause.disabled = state.busy.has(running.name);
-        if (nudgedWhileRunning(running)) {
-            page.nowNudgeText.textContent =
-                `Still working on this? You were nudged at ${formatClockTime(running.nudgedAt)}.`;
-        }
     }
     // The glow at the top of the page takes the running project's color.
     document.body.style.setProperty("--glow", running ? colorAt(runningIndex) : "var(--accent)");

@@ -56,7 +56,7 @@ Each step is its own PR. Backend steps are written by hand, and frontend steps a
 - [x] 3. HTTP API (backend): the four routes above. It lists today's workflows and queries each one to build the list of projects. Starting a project sends it a `start` update, then signals the other running projects so the running one pauses. It also serves the `web/` folder. A whole day can be run with `curl`.
 - [x] 4. Web page (frontend): today's projects with their times ticking, an "Add project" field, a Start/Pause button for each project, and errors from the API.
 - [x] 5. "Still running?" nudge (backend): while a project runs, its workflow sets a 2-hour timer (configurable with `NUDGE_AFTER_MS`, passed to each workflow as `nudgeAfterMs`). Pausing cancels it. When it fires, the workflow sets `nudgedAt` and a `notifyUser` activity shows a Mac notification.
-- [x] 6. Nudge and midnight on the page (frontend): show when the day ends, move to the new day without a reload, and mark projects that have been nudged.
+- [x] 6. Nudge and midnight on the page (frontend): show when the day ends, move to the new day without a reload, and ask "Still working on this?" on the running project once it's been nudged. Only a current nudge shows: no past nudge times.
 
 ## Things to try
 
