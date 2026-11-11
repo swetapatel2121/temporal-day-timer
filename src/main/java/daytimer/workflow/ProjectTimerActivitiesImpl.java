@@ -20,16 +20,35 @@ public class ProjectTimerActivitiesImpl implements ProjectTimerActivities {
     // The web page `make server` serves, opened when the notification is clicked.
     private static final String PAGE_URL = "http://localhost:7070";
 
+    // Runs a command and throws if it fails. The worker runs real commands; tests pass in a fake.
+    interface CommandRunner {
+        void run(List<String> command);
+    }
+
+    private final Optional<String> terminalNotifier;
+    private final CommandRunner runner;
+
+    // For the worker: uses terminal-notifier if it's installed, and runs real commands.
+    public ProjectTimerActivitiesImpl() {
+        this(findTerminalNotifier(), ProjectTimerActivitiesImpl::runProcess);
+    }
+
+    // For tests: where terminal-notifier is (or empty for not installed), and what runs the commands.
+    ProjectTimerActivitiesImpl(Optional<String> terminalNotifier, CommandRunner runner) {
+        this.terminalNotifier = terminalNotifier;
+        this.runner = runner;
+    }
+
     // Shows a Mac notification. With terminal-notifier (brew install terminal-notifier), clicking it opens
     // the web page. Without it, or if macOS hasn't allowed it to send notifications yet, osascript shows
     // the notification instead, but then macOS decides what a click opens.
     @Override
     public void notifyUser(String name) {
         String message = "Is " + name + " still running?";
-        Optional<String> terminalNotifier = terminalNotifier();
         if (terminalNotifier.isPresent()) {
             try {
-                run(List.of(terminalNotifier.get(), "-title", "Day Timer", "-message", message, "-open", PAGE_URL,
+                runner.run(List.of(terminalNotifier.get(), "-title", "Day Timer", "-message", message,
+                        "-open", PAGE_URL,
                         "-group", "day-timer")); // a new nudge replaces the last one instead of piling up
                 return;
             } catch (RuntimeException notAllowed) {
@@ -37,7 +56,7 @@ public class ProjectTimerActivitiesImpl implements ProjectTimerActivities {
             }
         }
         // The message is passed as an argument instead of inside the script, so quotes can't break it.
-        run(List.of("osascript",
+        runner.run(List.of("osascript",
                 "-e", "on run argv",
                 "-e", "display notification (item 1 of argv) with title \"Day Timer\"",
                 "-e", "end run",
@@ -45,8 +64,8 @@ public class ProjectTimerActivitiesImpl implements ProjectTimerActivities {
     }
 
     // Looks where Homebrew installs it as well as on the PATH, since apps opened from the Dock, like IntelliJ,
-    // may not have Homebrew's folder on their PATH.
-    private static Optional<String> terminalNotifier() {
+    // may not have Homebrew's folder on their PATH. Checked once, when the worker starts.
+    private static Optional<String> findTerminalNotifier() {
         Stream<String> folders = Stream.concat(
                 Stream.of("/opt/homebrew/bin", "/usr/local/bin"),
                 Arrays.stream(System.getenv().getOrDefault("PATH", "").split(":")));
@@ -58,7 +77,7 @@ public class ProjectTimerActivitiesImpl implements ProjectTimerActivities {
                 .findFirst();
     }
 
-    private static void run(List<String> command) {
+    private static void runProcess(List<String> command) {
         try {
             Process process = new ProcessBuilder(command).redirectErrorStream(true).start();
             if (!process.waitFor(5, TimeUnit.SECONDS)) {
