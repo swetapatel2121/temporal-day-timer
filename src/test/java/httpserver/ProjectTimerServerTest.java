@@ -42,6 +42,8 @@ class ProjectTimerServerTest {
 
     private static final JavalinJackson JSON = new JavalinJackson();
     private static final HttpClient HTTP = HttpClient.newHttpClient();
+    // For workflows these tests start directly. Longer than the tests run, so no nudge comes.
+    private static final long NUDGE_AFTER_MS = 2 * 60 * 60 * 1000;
 
     private static TemporalDevServer temporal;
     private static WorkflowClient client;
@@ -167,7 +169,7 @@ class ProjectTimerServerTest {
         // A project from an earlier day: its workflow has already completed.
         ProjectTimerWorkflow earlier = client.newWorkflowStub(ProjectTimerWorkflow.class,
                 WorkflowOptions.newBuilder().setTaskQueue("project-timers").setWorkflowId("project-earlier-2000-01-01").build());
-        WorkflowClient.start(earlier::run, new ProjectTimerWorkflowInput("earlier", "2000-01-01", System.currentTimeMillis() - 1));
+        WorkflowClient.start(earlier::run, new ProjectTimerWorkflowInput("earlier", "2000-01-01", System.currentTimeMillis() - 1, NUDGE_AFTER_MS));
         WorkflowStub.fromTyped(earlier).getResult(ProjectTimerWorkflowOutput.class);
         add("list today");
 
@@ -183,7 +185,7 @@ class ProjectTimerServerTest {
         // at midnight: its workflow is still running, and the project is too.
         ProjectTimerWorkflow late = client.newWorkflowStub(ProjectTimerWorkflow.class,
                 WorkflowOptions.newBuilder().setTaskQueue("project-timers").setWorkflowId("project-late-2000-01-01").build());
-        WorkflowClient.start(late::run, new ProjectTimerWorkflowInput("late", "2000-01-01", midnight()));
+        WorkflowClient.start(late::run, new ProjectTimerWorkflowInput("late", "2000-01-01", midnight(), NUDGE_AFTER_MS));
         late.start(System.currentTimeMillis());
         add("after late");
 

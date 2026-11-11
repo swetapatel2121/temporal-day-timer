@@ -1,5 +1,6 @@
 package daytimer;
 
+import daytimer.workflow.ProjectTimerActivitiesImpl;
 import daytimer.workflow.ProjectTimerWorkflowImpl;
 import io.temporal.client.WorkflowClient;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -14,7 +15,7 @@ public class ProjectTimerWorker {
 
         Worker worker = factory.newWorker("project-timers");
         worker.registerWorkflowImplementationTypes(ProjectTimerWorkflowImpl.class);
-
+        worker.registerActivitiesImplementations(new ProjectTimerActivitiesImpl());
         factory.start();
 
     }

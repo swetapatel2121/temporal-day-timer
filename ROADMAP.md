@@ -9,7 +9,7 @@ Temporal Day Timer is a small web app for tracking time spent on projects during
 - [x] Only one timer runs at a time. Starting a timer pauses the one that's running.
 - [x] Users can add new projects during the day and work on them.
 - [ ] Timers only last for the day. At local midnight they end, and the next day starts empty.
-- [ ] When a timer has been running for a long time, the user gets a "Still running?" nudge.
+- [x] When a timer has been running for a long time, the user gets a "Still running?" nudge.
 
 ## Design
 
@@ -53,7 +53,7 @@ Each step is its own PR. Backend steps are written by hand, and frontend steps a
 - [x] 2. The `projectTimer` workflow (backend): start and pause, a query that returns the project's state, and sleeping until `endsAt`, then closing any running stretch and completing. It can be driven from the Temporal CLI, and tests cover the totals and midnight with skipped time.
 - [x] 3. HTTP API (backend): the four routes above. It lists today's workflows and queries each one to build the list of projects. Starting a project sends it a `start` update, then signals the other running projects so the running one pauses. It also serves the `web/` folder. A whole day can be run with `curl`.
 - [x] 4. Web page (frontend): today's projects with their times ticking, an "Add project" field, a Start/Pause button for each project, and errors from the API.
-- [ ] 5. "Still running?" nudge (backend): while a project runs, its workflow sets a 2-hour timer (configurable, and 1 minute while testing). Pausing cancels it. When it fires, a `notify` activity shows a Mac notification and the workflow sets `nudgedAt`.
+- [x] 5. "Still running?" nudge (backend): while a project runs, its workflow sets a 2-hour timer (configurable with `NUDGE_AFTER_MS`, passed to each workflow as `nudgeAfterMs`). Pausing cancels it. When it fires, the workflow sets `nudgedAt` and a `notifyUser` activity shows a Mac notification.
 - [ ] 6. Nudge and midnight on the page (frontend): show when the day ends, move to the new day without a reload, and mark projects that have been nudged.
 
 ## Things to try
