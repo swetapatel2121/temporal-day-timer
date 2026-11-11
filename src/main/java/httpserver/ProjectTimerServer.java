@@ -31,12 +31,8 @@ public class ProjectTimerServer {
         Javalin app = Javalin.create(config -> config.staticFiles.add("web", Location.EXTERNAL));
 
         app.get("/api/projects", ctx -> {
-            List<Project> projects = client
-                    .listExecutions("WorkflowType = 'ProjectTimerWorkflow' AND ExecutionStatus = 'Running'")
-                    .sorted(Comparator.comparing(WorkflowExecutionMetadata::getStartTime))
-                    .map(execution -> client
-                            .newWorkflowStub(ProjectTimerWorkflow.class, execution.getExecution().getWorkflowId())
-                            .getProject())
+            List<Project> projects = todaysWorkflowIds(client).stream()
+                    .map(id -> client.newWorkflowStub(ProjectTimerWorkflow.class, id).getProject())
                     .toList();
             ctx.json(projects);
         });
@@ -76,9 +72,8 @@ public class ProjectTimerServer {
             // Start this project first, so an unknown name gets a 404 before anything else is paused.
             Project started = client.newWorkflowStub(ProjectTimerWorkflow.class, id).start(at);
 
-            // Then tell every other running project that this one started, so the running one pauses.
-            client.listExecutions("WorkflowType = 'ProjectTimerWorkflow' AND ExecutionStatus = 'Running'")
-                    .map(execution -> execution.getExecution().getWorkflowId())
+            // Then tell today's other projects that this one started, so the running one pauses.
+            todaysWorkflowIds(client).stream()
                     .filter(other -> !other.equals(id))
                     .forEach(other -> {
                         try {
@@ -109,5 +104,17 @@ public class ProjectTimerServer {
 
     private static String workflowId(String name) {
         return "project-" + name + "-" + LocalDate.now();
+    }
+
+    // The IDs of today's project workflows, in the order they were added. A workflow from an earlier day
+    // can still be running for a while after midnight if its timer fires late (say the computer was asleep),
+    // so this keeps only the IDs that end in today's date, the same date workflowId() uses.
+    private static List<String> todaysWorkflowIds(WorkflowClient client) {
+        String today = "-" + LocalDate.now();
+        return client.listExecutions("WorkflowType = 'ProjectTimerWorkflow' AND ExecutionStatus = 'Running'")
+                .sorted(Comparator.comparing(WorkflowExecutionMetadata::getStartTime))
+                .map(execution -> execution.getExecution().getWorkflowId())
+                .filter(id -> id.endsWith(today))
+                .toList();
     }
 }

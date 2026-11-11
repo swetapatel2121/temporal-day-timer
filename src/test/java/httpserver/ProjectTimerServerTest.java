@@ -178,6 +178,25 @@ class ProjectTimerServerTest {
     }
 
     @Test
+    void projectsFromEarlierDaysThatAreStillRunningAreLeftOut() throws Exception {
+        // A project from an earlier day whose midnight timer hasn't fired yet, like when the computer was asleep
+        // at midnight: its workflow is still running, and the project is too.
+        ProjectTimerWorkflow late = client.newWorkflowStub(ProjectTimerWorkflow.class,
+                WorkflowOptions.newBuilder().setTaskQueue("project-timers").setWorkflowId("project-late-2000-01-01").build());
+        WorkflowClient.start(late::run, new ProjectTimerWorkflowInput("late", "2000-01-01", midnight()));
+        late.start(System.currentTimeMillis());
+        add("after late");
+
+        HttpResponse<String> started = post("/api/projects/after%20late/start", "");
+
+        assertEquals(200, started.statusCode(), started.body());
+        List<Project> listed = eventually(() -> listed("after late", "late"),
+                projects -> projects.stream().anyMatch(project -> project.name().equals("after late")));
+        assertEquals(List.of("after late"), listed.stream().map(Project::name).toList());
+        assertNotNull(late.getProject().runningSince(), "starting a project today paused one from an earlier day");
+    }
+
+    @Test
     void servesTheWebPage() throws Exception {
         HttpResponse<String> response = get("/");
 

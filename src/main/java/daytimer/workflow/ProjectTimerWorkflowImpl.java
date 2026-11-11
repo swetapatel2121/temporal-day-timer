@@ -52,9 +52,11 @@ public class ProjectTimerWorkflowImpl implements ProjectTimerWorkflow {
         return new Project(name, date, endsAt, totalMs, runningSince, nudgedAt);
     }
 
+    // Ends the running stretch. Time after endsAt never counts: the midnight timer can fire late (say the
+    // computer was asleep), so a pause can arrive after midnight while the workflow is still running.
     private void pauseProject(long at) {
         if (runningSince != null) {
-            totalMs += at - runningSince;
+            totalMs += Math.min(at, endsAt) - runningSince;
             runningSince = null;
         }
     }

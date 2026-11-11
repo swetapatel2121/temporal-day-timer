@@ -14,12 +14,12 @@ Temporal Day Timer is a small web app for tracking time spent on projects during
 ## Design
 
 - Each project gets its own `projectTimer` workflow for the day, with the ID `project-<name>-<date>`.
-- A workflow keeps two numbers: `totalMs`, the time from finished stretches, and `runningSince`, set while the project is running. The page shows `totalMs + (now − runningSince)` and does the ticking itself. Nothing counts inside the workflow.
+- A workflow keeps two numbers: `totalMs`, the time from finished stretches, and `runningSince`, set while the project is running. The page shows `totalMs + (now − runningSince)` and does the ticking itself. Nothing counts inside the workflow, and a stretch never counts past `endsAt`, even when the pause arrives after midnight.
 - Temporal timers are only used for things that happen at a set time: the end of the day and the nudge.
 - The HTTP server works out when the day ends (`endsAt`, the next local midnight) and passes it to each workflow, so workflow code never deals with time zones. Tests can pass a short day instead.
 - The HTTP server keeps one project running at a time. When a project starts, the server signals the other running projects, and the one that was running pauses at the moment the new one started.
 - The HTTP server records the time each request arrives and passes it to the workflow, so a delay before the worker handles it is never counted.
-- Today's projects are the `projectTimer` workflows that are still running, since they all end at midnight.
+- Today's projects are the running `projectTimer` workflows whose ID ends in today's date. Workflows end at midnight, but the midnight timer can fire late, for example when the computer is asleep at midnight, so yesterday's can still be running for a while.
 
 ## API
 
