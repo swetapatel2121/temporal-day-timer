@@ -24,6 +24,14 @@ Start the project timer worker:
 make project-timer-worker
 ```
 
+Start the HTTP server, then open the web page at http://localhost:7070:
+
+```bash
+make server
+```
+
+The page is plain HTML, CSS and JavaScript in `web/`, with no build step. The server reads it from disk, so a reload picks up changes.
+
 Start a project timer workflow:
 
 ```bash
@@ -42,4 +50,4 @@ make describe
 make test
 ```
 
-The tests use Temporal's time-skipping test environment, so they don't need the dev server.
+The workflow tests use Temporal's time-skipping test environment. The HTTP server tests start their own throwaway dev server with the Temporal CLI, so they don't need, or touch, the one from `make temporal`.

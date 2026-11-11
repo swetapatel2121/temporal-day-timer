@@ -72,6 +72,12 @@
                             <mainClass>daytimer.ProjectTimerWorker</mainClass>
                         </configuration>
                     </execution>
+                    <execution>
+                        <id>server</id>
+                        <configuration>
+                            <mainClass>httpserver.ProjectTimerServer</mainClass>
+                        </configuration>
+                    </execution>
                 </executions>
             </plugin>
         </plugins>

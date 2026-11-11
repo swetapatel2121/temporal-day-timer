@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f6f7f3" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#111512" media="(prefers-color-scheme: dark)">
+    <title>Day Timer</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%235e7f63'/%3E%3Cpath d='M16 8.5V16l5 3' stroke='white' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="style.css">
+    <script src="app.js" defer></script>
+</head>
+<body>
+<main>
+    <header>
+        <p class="eyebrow">Day Timer</p>
+        <h1 id="today">Today</h1>
+        <p class="intro">
+            Track the time you spend on each project today. Starting a project pauses the one that's running,
+            and the day starts fresh at midnight.
+        </p>
+    </header>
+
+    <!-- The project that's running, with its time large. Hidden until there are projects. -->
+    <section id="now" class="card now" hidden>
+        <div class="running-view">
+            <p class="eyebrow now-label"><span class="pulse-dot"></span>Working on</p>
+            <p id="now-name" class="now-name"></p>
+            <div class="now-bottom">
+                <p id="now-time" class="now-time">0:00:00</p>
+                <button type="button" id="now-pause" class="now-pause">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6.5" y="5" width="4" height="14" rx="1.2"/><rect x="13.5" y="5" width="4" height="14" rx="1.2"/></svg>
+                    Pause
+                </button>
+            </div>
+        </div>
+        <div class="idle-view">
+            <p class="idle-title">Nothing running</p>
+            <p class="idle-hint">Press play on a project to start its clock.</p>
+        </div>
+    </section>
+
+    <!-- The day's total, and a bar showing how it splits between projects. -->
+    <section id="summary" class="card summary" hidden>
+        <div class="summary-row">
+            <p class="eyebrow">Total today</p>
+            <p id="day-total" class="total">0:00:00</p>
+        </div>
+        <div id="breakdown" class="breakdown" aria-hidden="true"></div>
+    </section>
+
+    <form id="add-form">
+        <label for="add-name" class="visually-hidden">Project name</label>
+        <input id="add-name" name="name" placeholder="Add a project…" autocomplete="off" maxlength="100">
+        <button type="submit" class="add">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+            Add
+        </button>
+    </form>
+
+    <p id="error" role="alert" hidden></p>
+
+    <ul id="projects"></ul>
+
+    <div id="empty" class="empty" hidden>
+        <svg viewBox="0 0 64 64" aria-hidden="true">
+            <circle cx="32" cy="34" r="22"/>
+            <path d="M32 22v12l8 5"/>
+            <path d="M26 6h12M32 6v6"/>
+        </svg>
+        <p class="empty-title">No projects yet</p>
+        <p class="empty-hint">Add what you're working on today and start the clock.</p>
+    </div>
+</main>
+
+<template id="project-row">
+    <li class="project">
+        <span class="dot"></span>
+        <span class="name"></span>
+        <span class="time"></span>
+        <button type="button" class="toggle">
+            <svg class="icon-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.8v12.4a1 1 0 0 0 1.52.86l10.2-6.2a1 1 0 0 0 0-1.72L9.52 4.94A1 1 0 0 0 8 5.8z"/></svg>
+            <svg class="icon-pause" viewBox="0 0 24 24" aria-hidden="true"><rect x="6.5" y="5" width="4" height="14" rx="1.2"/><rect x="13.5" y="5" width="4" height="14" rx="1.2"/></svg>
+        </button>
+    </li>
+</template>
+</body>
+</html>
