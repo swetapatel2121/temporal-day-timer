@@ -9,6 +9,7 @@ import io.javalin.http.staticfiles.Location;
 import io.temporal.client.*;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Comparator;
@@ -17,6 +18,11 @@ import java.util.Map;
 
 public class ProjectTimerServer {
     record NewProject(String name) {}
+
+    // How long a project runs before its "Still running?" nudge: 2 hours, or NUDGE_AFTER_MS to try it sooner.
+    // Each workflow gets the value when it starts, so changing it only affects projects added afterwards.
+    private static final long NUDGE_AFTER_MS = Long.parseLong(
+            System.getenv().getOrDefault("NUDGE_AFTER_MS", String.valueOf(Duration.ofHours(2).toMillis())));
 
     public static void main(String[] args) {
         WorkflowServiceStubs service = WorkflowServiceStubs.newLocalServiceStubs();
@@ -55,7 +61,8 @@ public class ProjectTimerServer {
                             .build());
             try {
                 // Starts the workflow without waiting for it: run() only finishes at midnight.
-                WorkflowClient.start(workflow::run, new ProjectTimerWorkflowInput(name, today.toString(), endsAt));
+                WorkflowClient.start(workflow::run,
+                        new ProjectTimerWorkflowInput(name, today.toString(), endsAt, NUDGE_AFTER_MS));
             } catch (WorkflowExecutionAlreadyStarted e) {
                 ctx.status(409).json(Map.of("error", "There's already a project called " + name + " today"));
                 return;

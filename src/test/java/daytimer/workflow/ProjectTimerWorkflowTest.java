@@ -17,7 +17,17 @@ import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.withSettings;
 
 // Each test gets a fresh time-skipping test environment, so waiting for midnight takes no real time.
 // A workflow whose task keeps failing would make a test wait forever, so each test gives up after 30 seconds.
@@ -28,11 +38,18 @@ public class ProjectTimerWorkflowTest {
     private static final String DATE = "2026-11-09";
     private static final long MINUTE = 60_000;
     private static final long HOUR = 60 * MINUTE;
+    private static final long NUDGE_AFTER = HOUR;
+
+    // A mock instead of the real activities, so no notification pops up and the tests can check the calls.
+    // Temporal needs it made without copying the interface's annotations.
+    private static final ProjectTimerActivities activities =
+            mock(ProjectTimerActivities.class, withSettings().withoutAnnotations());
 
     @RegisterExtension
     public static final TestWorkflowExtension testWorkflowExtension =
             TestWorkflowExtension.newBuilder()
                     .setWorkflowTypes(ProjectTimerWorkflowImpl.class)
+                    .setActivityImplementations(activities)
                     .build();
 
     private long now;
@@ -42,18 +59,19 @@ public class ProjectTimerWorkflowTest {
     void setUp(TestWorkflowEnvironment testEnv) {
         now = testEnv.currentTimeMillis();
         endsAt = now + 10 * HOUR;
+        reset(activities);
     }
 
     @Test
     public void dayWithNoWorkEndsWithNothingRecorded(ProjectTimerWorkflow workflow) {
-        ProjectTimerWorkflowOutput output = workflow.run(new ProjectTimerWorkflowInput(NAME, DATE, endsAt));
+        ProjectTimerWorkflowOutput output = workflow.run(new ProjectTimerWorkflowInput(NAME, DATE, endsAt, NUDGE_AFTER));
 
         assertEquals(new Project(NAME, DATE, endsAt, 0, null, null), output.project());
     }
 
     @Test
     public void startThenPauseAddsTheStretch(ProjectTimerWorkflow workflow) {
-        WorkflowClient.start(workflow::run, new ProjectTimerWorkflowInput(NAME, DATE, endsAt));
+        WorkflowClient.start(workflow::run, new ProjectTimerWorkflowInput(NAME, DATE, endsAt, NUDGE_AFTER));
 
         Project started = workflow.start(now);
         assertEquals(new Project(NAME, DATE, endsAt, 0, now, null), started);
@@ -66,7 +84,7 @@ public class ProjectTimerWorkflowTest {
 
     @Test
     public void stretchesAddUp(ProjectTimerWorkflow workflow) {
-        WorkflowClient.start(workflow::run, new ProjectTimerWorkflowInput(NAME, DATE, endsAt));
+        WorkflowClient.start(workflow::run, new ProjectTimerWorkflowInput(NAME, DATE, endsAt, NUDGE_AFTER));
 
         workflow.start(now);
         workflow.pause(now + 30 * MINUTE);
@@ -78,7 +96,7 @@ public class ProjectTimerWorkflowTest {
 
     @Test
     public void startWhileRunningKeepsTheFirstStart(ProjectTimerWorkflow workflow) {
-        WorkflowClient.start(workflow::run, new ProjectTimerWorkflowInput(NAME, DATE, endsAt));
+        WorkflowClient.start(workflow::run, new ProjectTimerWorkflowInput(NAME, DATE, endsAt, NUDGE_AFTER));
 
         workflow.start(now);
         Project startedAgain = workflow.start(now + 10 * MINUTE);
@@ -89,14 +107,14 @@ public class ProjectTimerWorkflowTest {
 
     @Test
     public void pauseWhilePausedChangesNothing(ProjectTimerWorkflow workflow) {
-        WorkflowClient.start(workflow::run, new ProjectTimerWorkflowInput(NAME, DATE, endsAt));
+        WorkflowClient.start(workflow::run, new ProjectTimerWorkflowInput(NAME, DATE, endsAt, NUDGE_AFTER));
 
         assertEquals(new Project(NAME, DATE, endsAt, 0, null, null), workflow.pause(now));
     }
 
     @Test
     public void otherProjectStartedStopsTheRunningStretch(ProjectTimerWorkflow workflow) {
-        WorkflowClient.start(workflow::run, new ProjectTimerWorkflowInput(NAME, DATE, endsAt));
+        WorkflowClient.start(workflow::run, new ProjectTimerWorkflowInput(NAME, DATE, endsAt, NUDGE_AFTER));
 
         workflow.start(now);
         workflow.otherProjectStarted(now + 20 * MINUTE);
@@ -109,7 +127,7 @@ public class ProjectTimerWorkflowTest {
 
     @Test
     public void otherProjectStartedWhilePausedIsIgnored(ProjectTimerWorkflow workflow) {
-        WorkflowClient.start(workflow::run, new ProjectTimerWorkflowInput(NAME, DATE, endsAt));
+        WorkflowClient.start(workflow::run, new ProjectTimerWorkflowInput(NAME, DATE, endsAt, NUDGE_AFTER));
 
         workflow.otherProjectStarted(now);
 
@@ -118,11 +136,97 @@ public class ProjectTimerWorkflowTest {
 
     @Test
     public void stillRunningAtMidnightCountsUpToEndsAt(ProjectTimerWorkflow workflow) {
-        WorkflowClient.start(workflow::run, new ProjectTimerWorkflowInput(NAME, DATE, endsAt));
+        WorkflowClient.start(workflow::run, new ProjectTimerWorkflowInput(NAME, DATE, endsAt, NUDGE_AFTER));
 
         workflow.start(now);
 
-        assertEquals(new Project(NAME, DATE, endsAt, 10 * HOUR, null, null), resultAtMidnight(workflow));
+        Project atMidnight = resultAtMidnight(workflow);
+        assertEquals(10 * HOUR, atMidnight.totalMs());
+        assertNull(atMidnight.runningSince());
+    }
+
+    // ---- the "Still running?" nudge ----
+
+    @Test
+    public void runningForNudgeAfterNudgesOnce(ProjectTimerWorkflow workflow) {
+        WorkflowClient.start(workflow::run, new ProjectTimerWorkflowInput(NAME, DATE, endsAt, NUDGE_AFTER));
+
+        workflow.start(now);
+
+        Project atMidnight = resultAtMidnight(workflow);
+        verify(activities, times(1)).notifyUser(NAME);
+        assertAround(now + NUDGE_AFTER, atMidnight.nudgedAt());
+    }
+
+    @Test
+    public void pausingBeforeTheNudgeCancelsIt(ProjectTimerWorkflow workflow) {
+        WorkflowClient.start(workflow::run, new ProjectTimerWorkflowInput(NAME, DATE, endsAt, NUDGE_AFTER));
+
+        workflow.start(now);
+        workflow.pause(now + 30 * MINUTE);
+
+        Project atMidnight = resultAtMidnight(workflow);
+        verify(activities, never()).notifyUser(any());
+        assertNull(atMidnight.nudgedAt());
+        assertEquals(30 * MINUTE, atMidnight.totalMs());
+    }
+
+    @Test
+    public void otherProjectStartedCancelsTheNudge(ProjectTimerWorkflow workflow) {
+        WorkflowClient.start(workflow::run, new ProjectTimerWorkflowInput(NAME, DATE, endsAt, NUDGE_AFTER));
+
+        workflow.start(now);
+        workflow.otherProjectStarted(now + 30 * MINUTE);
+
+        assertNull(resultAtMidnight(workflow).nudgedAt());
+        verify(activities, never()).notifyUser(any());
+    }
+
+    @Test
+    public void eachRunningStretchWaitsTheFullTimeAgain(ProjectTimerWorkflow workflow) {
+        WorkflowClient.start(workflow::run, new ProjectTimerWorkflowInput(NAME, DATE, endsAt, NUDGE_AFTER));
+
+        workflow.start(now);
+        workflow.pause(now + 30 * MINUTE);
+        workflow.start(now + 40 * MINUTE);
+
+        // Counted from the second start, not the first: the first nudge was cancelled by the pause.
+        assertAround(now + 40 * MINUTE + NUDGE_AFTER, resultAtMidnight(workflow).nudgedAt());
+        verify(activities, times(1)).notifyUser(NAME);
+    }
+
+    @Test
+    public void aNudgeDueAfterMidnightNeverComes(ProjectTimerWorkflow workflow) {
+        WorkflowClient.start(workflow::run, new ProjectTimerWorkflowInput(NAME, DATE, endsAt, NUDGE_AFTER));
+
+        workflow.start(endsAt - 30 * MINUTE);
+
+        assertNull(resultAtMidnight(workflow).nudgedAt());
+        verify(activities, never()).notifyUser(any());
+    }
+
+    @Test
+    public void nudgeAfterOfZeroMeansNoNudge(ProjectTimerWorkflow workflow) {
+        // Workflows started before nudges existed have no nudgeAfterMs in their input, so it reads as 0.
+        WorkflowClient.start(workflow::run, new ProjectTimerWorkflowInput(NAME, DATE, endsAt, 0));
+
+        workflow.start(now);
+
+        assertNull(resultAtMidnight(workflow).nudgedAt());
+        verify(activities, never()).notifyUser(any());
+    }
+
+    @Test
+    public void aNotificationThatKeepsFailingDoesNotStopTheDay(ProjectTimerWorkflow workflow) {
+        doThrow(new IllegalStateException("notifications are turned off")).when(activities).notifyUser(any());
+        WorkflowClient.start(workflow::run, new ProjectTimerWorkflowInput(NAME, DATE, endsAt, NUDGE_AFTER));
+
+        workflow.start(now);
+
+        Project atMidnight = resultAtMidnight(workflow);
+        verify(activities, times(3)).notifyUser(NAME); // tried 3 times, then given up
+        assertNotNull(atMidnight.nudgedAt());
+        assertEquals(10 * HOUR, atMidnight.totalMs());
     }
 
     // In these two, the midnight timer hasn't fired yet when a pause arrives an hour after endsAt, like when
@@ -130,7 +234,7 @@ public class ProjectTimerWorkflowTest {
 
     @Test
     public void lateOtherProjectStartedOnlyCountsUntilEndsAt(ProjectTimerWorkflow workflow) {
-        WorkflowClient.start(workflow::run, new ProjectTimerWorkflowInput(NAME, DATE, endsAt));
+        WorkflowClient.start(workflow::run, new ProjectTimerWorkflowInput(NAME, DATE, endsAt, NUDGE_AFTER));
 
         workflow.start(endsAt - 30 * MINUTE);
         workflow.otherProjectStarted(endsAt + HOUR);
@@ -140,7 +244,7 @@ public class ProjectTimerWorkflowTest {
 
     @Test
     public void latePauseOnlyCountsUntilEndsAt(ProjectTimerWorkflow workflow) {
-        WorkflowClient.start(workflow::run, new ProjectTimerWorkflowInput(NAME, DATE, endsAt));
+        WorkflowClient.start(workflow::run, new ProjectTimerWorkflowInput(NAME, DATE, endsAt, NUDGE_AFTER));
 
         workflow.start(endsAt - 30 * MINUTE);
 
@@ -158,13 +262,20 @@ public class ProjectTimerWorkflowTest {
                         .setWorkflowIdConflictPolicy(WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_FAIL)
                         .build());
         WithStartWorkflowOperation<ProjectTimerWorkflowOutput> startWorkflow =
-                new WithStartWorkflowOperation<>(workflow::run, new ProjectTimerWorkflowInput(NAME, DATE, endsAt));
+                new WithStartWorkflowOperation<>(workflow::run, new ProjectTimerWorkflowInput(NAME, DATE, endsAt, NUDGE_AFTER));
 
         Project started = WorkflowClient.executeUpdateWithStart(workflow::start, now,
                 UpdateOptions.<Project>newBuilder().setWaitForStage(WorkflowUpdateStage.COMPLETED).build(),
                 startWorkflow);
 
         assertEquals(new Project(NAME, DATE, endsAt, 0, now, null), started);
+    }
+
+    // The nudge's time comes from the test environment's clock, which also moves with real time for the
+    // moment the workflow takes to handle the timer, so it's checked to within a minute.
+    private static void assertAround(long expected, Long actual) {
+        assertNotNull(actual);
+        assertTrue(expected <= actual && actual < expected + MINUTE, actual + " is not just after " + expected);
     }
 
     // Waiting for the result lets the test environment skip ahead to midnight.
