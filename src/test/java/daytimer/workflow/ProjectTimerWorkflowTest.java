@@ -125,6 +125,28 @@ public class ProjectTimerWorkflowTest {
         assertEquals(new Project(NAME, DATE, endsAt, 10 * HOUR, null, null), resultAtMidnight(workflow));
     }
 
+    // In these two, the midnight timer hasn't fired yet when a pause arrives an hour after endsAt, like when
+    // the computer was asleep at midnight. (In the test environment, time only moves while waiting on a result.)
+
+    @Test
+    public void lateOtherProjectStartedOnlyCountsUntilEndsAt(ProjectTimerWorkflow workflow) {
+        WorkflowClient.start(workflow::run, new ProjectTimerWorkflowInput(NAME, DATE, endsAt));
+
+        workflow.start(endsAt - 30 * MINUTE);
+        workflow.otherProjectStarted(endsAt + HOUR);
+
+        assertEquals(new Project(NAME, DATE, endsAt, 30 * MINUTE, null, null), resultAtMidnight(workflow));
+    }
+
+    @Test
+    public void latePauseOnlyCountsUntilEndsAt(ProjectTimerWorkflow workflow) {
+        WorkflowClient.start(workflow::run, new ProjectTimerWorkflowInput(NAME, DATE, endsAt));
+
+        workflow.start(endsAt - 30 * MINUTE);
+
+        assertEquals(new Project(NAME, DATE, endsAt, 30 * MINUTE, null, null), workflow.pause(endsAt + HOUR));
+    }
+
     @Test
     public void updateSentWithTheStartSeesTheInput(TestWorkflowEnvironment testEnv, Worker worker) {
         // Update-with-start sends the workflow start and the update in one request, so the update
