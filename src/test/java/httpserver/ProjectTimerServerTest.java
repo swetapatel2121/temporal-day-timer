@@ -34,7 +34,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 // Runs the HTTP server against a throwaway Temporal dev server with a real worker, and calls it over HTTP.
 // All the tests share one Temporal server, so each test uses its own project names.
@@ -51,11 +50,6 @@ class ProjectTimerServerTest {
 
     @BeforeAll
     static void startServers() throws Exception {
-        if (!TemporalDevServer.cliInstalled()) {
-            // CI installs the CLI, so a missing CLI there is a real failure, not a reason to skip.
-            assertNull(System.getenv("CI"), "The Temporal CLI isn't installed on the CI runner");
-            assumeTrue(false, "Install the Temporal CLI (brew install temporal) to run the server tests");
-        }
         temporal = TemporalDevServer.start();
         client = WorkflowClient.newInstance(temporal.service());
         workers = WorkerFactory.newInstance(client);

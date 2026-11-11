@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 // A throwaway Temporal dev server for tests, started with the Temporal CLI. It keeps everything in memory
@@ -24,21 +25,19 @@ final class TemporalDevServer implements AutoCloseable {
         this.service = service;
     }
 
-    static boolean cliInstalled() {
-        try {
-            return new ProcessBuilder("temporal", "--version").redirectErrorStream(true).start().waitFor() == 0;
-        } catch (IOException e) {
-            return false;
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            return false;
-        }
-    }
+    // Where to look for the `temporal` command. Apps opened from the Dock, like IntelliJ, may not have
+    // Homebrew's folder on their PATH, so this also checks where Homebrew and Temporal's install script put it.
+    private static final List<String> CLI_LOCATIONS = List.of(
+            "temporal",
+            "/opt/homebrew/bin/temporal",
+            "/usr/local/bin/temporal",
+            System.getProperty("user.home") + "/.temporalio/bin/temporal");
 
     // Starts the server and waits until it's ready to take workflows.
     static TemporalDevServer start() throws IOException, InterruptedException {
+        String cli = findCli();
         int port = freePort();
-        Process process = new ProcessBuilder("temporal", "server", "start-dev", "--headless", "--log-level", "error",
+        Process process = new ProcessBuilder(cli, "server", "start-dev", "--headless", "--log-level", "error",
                 "--port", String.valueOf(port), "--ui-port", String.valueOf(freePort()))
                 .redirectErrorStream(true)
                 .redirectOutput(new File("target", "temporal-dev-server.log"))
@@ -76,6 +75,19 @@ final class TemporalDevServer implements AutoCloseable {
         if (!process.waitFor(10, TimeUnit.SECONDS)) {
             process.destroyForcibly();
         }
+    }
+
+    private static String findCli() throws InterruptedException {
+        for (String cli : CLI_LOCATIONS) {
+            try {
+                if (new ProcessBuilder(cli, "--version").redirectErrorStream(true).start().waitFor() == 0) {
+                    return cli;
+                }
+            } catch (IOException notThere) {
+                // Try the next place.
+            }
+        }
+        throw new IllegalStateException("The server tests need the Temporal CLI. Install it with: brew install temporal");
     }
 
     private static int freePort() throws IOException {

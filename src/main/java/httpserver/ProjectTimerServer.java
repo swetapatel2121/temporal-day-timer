@@ -1,5 +1,6 @@
 package httpserver;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import daytimer.model.Project;
 import daytimer.workflow.ProjectTimerWorkflow;
 import daytimer.workflow.ProjectTimerWorkflowInput;
@@ -55,7 +56,8 @@ public class ProjectTimerServer {
                             .setWorkflowId(workflowId(name))
                             .build());
             try {
-                workflow.run(new ProjectTimerWorkflowInput(name, today.toString(), endsAt));
+                // Starts the workflow without waiting for it: run() only finishes at midnight.
+                WorkflowClient.start(workflow::run, new ProjectTimerWorkflowInput(name, today.toString(), endsAt));
             } catch (WorkflowExecutionAlreadyStarted e) {
                 ctx.status(409).json(Map.of("error", "There's already a project called " + name + " today"));
                 return;
@@ -67,9 +69,24 @@ public class ProjectTimerServer {
         app.post("/api/projects/{name}/start", ctx -> {
             String name = ctx.pathParam("name");
             long at = System.currentTimeMillis();
+            String id = workflowId(name);
 
-            ProjectTimerWorkflow project = client.newWorkflowStub(ProjectTimerWorkflow.class, workflowId(name));
-            ctx.json(project.start(at));
+            // Start this project first, so an unknown name gets a 404 before anything else is paused.
+            Project started = client.newWorkflowStub(ProjectTimerWorkflow.class, id).start(at);
+
+            // Then tell every other running project that this one started, so the running one pauses.
+            client.listExecutions("WorkflowType = 'ProjectTimerWorkflow' AND ExecutionStatus = 'Running'")
+                    .map(execution -> execution.getExecution().getWorkflowId())
+                    .filter(other -> !other.equals(id))
+                    .forEach(other -> {
+                        try {
+                            client.newWorkflowStub(ProjectTimerWorkflow.class, other).otherProjectStarted(at);
+                        } catch (WorkflowNotFoundException finishedMeanwhile) {
+                            // The list can lag behind: this project already finished, so there's nothing to pause.
+                        }
+                    });
+
+            ctx.json(started);
         });
 
         app.post("/api/projects/{name}/pause", ctx -> {
@@ -82,6 +99,8 @@ public class ProjectTimerServer {
 
         app.exception(WorkflowNotFoundException.class, (e, ctx) ->
                 ctx.status(404).json(Map.of("error", "No project called " + ctx.pathParam("name") + " today")));
+        app.exception(JsonProcessingException.class, (e, ctx) ->
+                ctx.status(400).json(Map.of("error", "The request body isn't valid JSON")));
 
         return app;
     }
