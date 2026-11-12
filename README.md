@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/swetapatel2121/temporal-day-timer/actions/workflows/test.yml/badge.svg)](https://github.com/swetapatel2121/temporal-day-timer/actions/workflows/test.yml)
 
-A small web app for tracking the time you spend on each project during a day, built to learn [Temporal](https://temporal.io). Each project's timer is a Temporal workflow that lives until midnight.
+A small web app for tracking the time you spend on each project during a day, built using [Temporal](https://temporal.io). Each project's timer is a Temporal workflow that lives until midnight.
 
 ![The Day Timer page: one project running, and the day's time split between three projects](docs/screenshot.png)
 
