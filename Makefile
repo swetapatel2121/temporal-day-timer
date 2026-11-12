@@ -25,10 +25,17 @@ project-timer-worker: ## Start the worker (needs the dev server running)
 server: ## Start the HTTP server and the web page at http://localhost:7070 (needs the dev server and the worker)
 	mvn -q compile exec:java@server
 
-start-project-timer-workflow: ## Start a workflow: make start-project-timer-workflow NAME=myproject [INPUT='{...}']
+# Without INPUT, it sends what the page's Add sends: today's date, the next local midnight, and a 2-hour nudge.
+# (`date -j -v` is macOS's date.)
+start-project-timer-workflow: ## Start today's workflow for a project, like Add: make start-project-timer-workflow NAME=myproject [INPUT='{...}']
 	@test -n "$(NAME)" || (echo "usage: make start-project-timer-workflow NAME=<project> [INPUT='<json>']" && exit 1)
+	@input='$(INPUT)'; \
+	if [ -z "$$input" ]; then \
+		input=$$(printf '{"name":"%s","date":"%s","endsAt":%s000,"nudgeAfterMs":7200000}' \
+			'$(NAME)' "$$(date +%F)" "$$(date -j -v+1d -v0H -v0M -v0S +%s)"); \
+	fi; \
 	temporal workflow start --task-queue $(PROJECT_TIMER_TASK_QUEUE) --type ProjectTimerWorkflow \
-		--workflow-id project-$(NAME)-$$(date +%F) $(if $(INPUT),--input '$(INPUT)')
+		--workflow-id "project-$(NAME)-$$(date +%F)" --input "$$input"
 
 describe: ## Show the pollers on the task queue (is the worker up?)
 	temporal task-queue describe --task-queue $(PROJECT_TIMER_TASK_QUEUE)
